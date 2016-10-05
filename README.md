@@ -1,5 +1,5 @@
 # MSBuild ShellCodeInject Impersonation
-MSBuild with c# shellcode injection with Domain users impersonation capability. 
+MSBuild with c# shellcode injection with logged on domain users impersonation capability using win32 apis. 
 
 The code is a POC, so please use at your own risk. I am willing to improve/fix reported issues.
 
