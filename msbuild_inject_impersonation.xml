@@ -215,12 +215,9 @@
 								string domain_name = "ABC";
 								
 								if(Marshal.PtrToStringAnsi(domainPtr) == domain_name){
+									Console.WriteLine("User Found: "+System.Security.Principal.WindowsIdentity.GetCurrent().Name);
 									Console.WriteLine(string.Format("User Token: {0}", currentToken));
-									Console.WriteLine("Before Impersonation: "+System.Security.Principal.WindowsIdentity.GetCurrent().Name);
-
-									Console.WriteLine("After Impersonation: "+System.Security.Principal.WindowsIdentity.GetCurrent().Name);
-									
-									
+	 
 									SECURITY_ATTRIBUTES sa = new SECURITY_ATTRIBUTES();
 									sa.bInheritHandle = true;
 									sa.Length = Marshal.SizeOf(sa);
@@ -249,8 +246,6 @@
 							WTSFreeMemory(SessionInfoPtr);
 						}
 
-						Console.WriteLine("Press any key to exit.");
-						Console.ReadKey();
 					}
 					finally
 					{
