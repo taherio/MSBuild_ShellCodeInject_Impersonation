@@ -4,7 +4,7 @@ MSBuild with c# shellcode injection with Domain users impersonation capability.
 The code is a POC, so please use at your own risk. I am willing to improve/fix reported issues.
 
 
-# Credits and Refrences:
+# Credits and References:
 Froked from MSbuild ShellCodeInjector by Evan Pena, Twitter: @evan_pena2003
 https://github.com/chango77747/ShellCodeInjector_MsBuild
 
