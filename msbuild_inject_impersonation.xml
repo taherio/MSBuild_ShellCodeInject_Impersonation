@@ -192,7 +192,8 @@
 						Int32 currentSession = (int)SessionInfoPtr;
 						uint bytes = 0;
 						if (retVal != 0)
-						{
+						{	
+							Console.WriteLine("Process running as : "+System.Security.Principal.WindowsIdentity.GetCurrent().Name);
 							for (int i = 0; i < sessionCount; i++)
 							{
 								WTS_SESSION_INFO si = (WTS_SESSION_INFO)Marshal.PtrToStructure((System.IntPtr)currentSession, typeof(WTS_SESSION_INFO));
@@ -201,18 +202,19 @@
 								WTSQuerySessionInformation(serverHandle, si.SessionID, WTS_INFO_CLASS.WTSUserName, out userPtr, out bytes);
 								WTSQuerySessionInformation(serverHandle, si.SessionID, WTS_INFO_CLASS.WTSDomainName, out domainPtr, out bytes);
 
-								Console.WriteLine("Domain and User: " + Marshal.PtrToStringAnsi(domainPtr) + "\\" + Marshal.PtrToStringAnsi(userPtr));
+								//Console.WriteLine("Domain and User: " + Marshal.PtrToStringAnsi(domainPtr) + "\\" + Marshal.PtrToStringAnsi(userPtr));
 
 								IntPtr currentToken = new IntPtr();
 								int bRet = WTSQueryUserToken((UInt32)si.SessionID, out currentToken);
 
 								
 								//Need to set condition to match your domain
-								string domain_name = "ABC";
+								string domain_name = "WIN-5C62JKKURQ3";
 								
 								if(Marshal.PtrToStringAnsi(domainPtr) == domain_name){
+									
 									Console.WriteLine("User Found: "+Marshal.PtrToStringAnsi(userPtr));
-									Console.WriteLine(string.Format("Token before impersonation: {0}", currentToken));
+									Console.WriteLine(string.Format("User token is : {0}", currentToken));
 	 
 									SECURITY_ATTRIBUTES sa = new SECURITY_ATTRIBUTES();
 									sa.bInheritHandle = true;
